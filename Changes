@@ -1,5 +1,8 @@
 Revision history for Net-SNMP-Mixin-IfInfo
 
+0.02	Fr 18. Apr 15:18:00 CEST 2008
+	minor change in param handling
+
 0.01_01 Mon Apr 14 23:22:43 CEST 2008
         First developer release.
 

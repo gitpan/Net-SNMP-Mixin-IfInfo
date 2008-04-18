@@ -48,11 +48,11 @@ Net::SNMP::Mixin::IfInfo - mixin class for interface related infos
 
 =head1 VERSION
 
-Version 0.01_01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01_01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -108,7 +108,7 @@ Returns parts ot the ifTable and ifXTable as a hash reference. The key is the co
 =cut
 
 sub get_if_entries {
-  my ( $session, $ifIndex ) = @_;
+  my $session = shift;
   Carp::croak "'$prefix' not initialized,"
     unless $session->{$prefix}{__initialized};
 
