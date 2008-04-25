@@ -48,11 +48,11 @@ Net::SNMP::Mixin::IfInfo - mixin class for interface related infos
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -103,6 +103,8 @@ Returns parts ot the ifTable and ifXTable as a hash reference. The key is the co
       ifAdminStatus => INTEGER,          # an ifTable entry
       ifOperStatus  => INTEGER,          # an ifTable entry
     }
+
+    ... ,
   }
 
 =cut
@@ -113,36 +115,30 @@ sub get_if_entries {
     unless $session->{$prefix}{__initialized};
 
   # stash for return values
-  my $if_entries = {};
+  my $result = {};
 
-  # get the ifIndexes
-  my @ifIndexes = keys %{ $session->{$prefix}{ifDescr} };
+  # the MIB tables are stored in {column}{row}{value} order
+  # but we return {row}{column}{value}
+  #
+  # grab all rows from one random choosen column
+  my @rows = keys %{ $session->{$prefix}{ifInfo}{ifDescr} };
 
-  foreach my $ifIndex ( @ifIndexes ) {
-    my $row = {};
+  foreach my $row (@rows) {
 
-    $row->{ifDescr} =
-      $session->{$prefix}{ifDescr}{$ifIndex};
+    # loop over all columns
+    foreach my $column ( keys %{ $session->{$prefix}{ifInfo} } ) {
 
-    $row->{ifType} =
-      $session->{$prefix}{ifType}{$ifIndex};
+      # rebuild in reverse order: result(row,column) = stash(column,row)
+      # side effect: make a shallow copy for shallow values
 
-    $row->{ifAdminStatus} =
-      $session->{$prefix}{ifAdminStatus}{$ifIndex};
+      $result->{$row}{$column} =
+        $session->{$prefix}{ifInfo}{$column}{$row};
+    }
 
-    $row->{ifOperStatus} =
-      $session->{$prefix}{ifOperStatus}{$ifIndex};
-
-    $row->{ifName} =
-      $session->{$prefix}{ifName}{$ifIndex};
-
-    $row->{ifAlias} =
-      $session->{$prefix}{ifAlias}{$ifIndex};
-
-    $if_entries->{$ifIndex} = $row;
   }
 
-  return $if_entries;
+  return $result;
+
 }
 
 =head1 INITIALIZATION
@@ -215,12 +211,19 @@ sub _if_entries_cb {
   return unless defined $vbl;
 
   # mangle result table to get plain idx->value
-  $session->{$prefix}{ifDescr}       = idx2val( $vbl, IF_DESCR );
-  $session->{$prefix}{ifType}        = idx2val( $vbl, IF_TYPE );
-  $session->{$prefix}{ifAdminStatus} = idx2val( $vbl, IF_ADMIN_STATUS );
-  $session->{$prefix}{ifOperStatus}  = idx2val( $vbl, IF_OPER_STATUS );
-  $session->{$prefix}{ifName}        = idx2val( $vbl, IF_X_NAME );
-  $session->{$prefix}{ifAlias}       = idx2val( $vbl, IF_X_ALIAS );
+  $session->{$prefix}{ifInfo}{ifDescr} = idx2val( $vbl, IF_DESCR );
+
+  $session->{$prefix}{ifInfo}{ifType}  = idx2val( $vbl, IF_TYPE );
+
+  $session->{$prefix}{ifInfo}{ifAdminStatus} =
+    idx2val( $vbl, IF_ADMIN_STATUS );
+
+  $session->{$prefix}{ifInfo}{ifOperStatus} =
+    idx2val( $vbl, IF_OPER_STATUS );
+
+  $session->{$prefix}{ifInfo}{ifName}  = idx2val( $vbl, IF_X_NAME );
+
+  $session->{$prefix}{ifInfo}{ifAlias} = idx2val( $vbl, IF_X_ALIAS );
 
   $session->{$prefix}{__initialized}++;
 }

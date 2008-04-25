@@ -2,7 +2,7 @@ NAME
     Net::SNMP::Mixin::IfInfo - mixin class for interface related infos
 
 VERSION
-    Version 0.02
+    Version 0.03
 
 SYNOPSIS
       use Net::SNMP;
@@ -52,6 +52,8 @@ MIXIN METHODS
           ifAdminStatus => INTEGER,          # an ifTable entry
           ifOperStatus  => INTEGER,          # an ifTable entry
         }
+
+        ... ,
       }
 
 INITIALIZATION

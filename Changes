@@ -1,5 +1,9 @@
 Revision history for Net-SNMP-Mixin-IfInfo
 
+0.03	Fr 25. Apr 19:17:10 CEST 2008
+	new return values processing
+	no interface change
+
 0.02	Fr 18. Apr 15:18:00 CEST 2008
 	minor change in param handling
 
