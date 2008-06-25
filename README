@@ -2,18 +2,18 @@ NAME
     Net::SNMP::Mixin::IfInfo - mixin class for interface related infos
 
 VERSION
-    Version 0.03
+    Version 0.04
 
 SYNOPSIS
       use Net::SNMP;
-      use Net::SNMP::Mixin qw/mixer init_mixins/;
+      use Net::SNMP::Mixin;
 
       my $session = Net::SNMP->session( -hostname => 'foo.bar.com' );
 
       $session->mixer('Net::SNMP::Mixin::IfInfo');
       $session->init_mixins;
-      snmp_dispatcher()   if $session->nonblocking;
-      die $session->error if $session->error;
+      snmp_dispatcher();
+      die $session->errors if $session->errors;
 
       my $if_entries = $session->get_if_entries;
       foreach my $if_index ( sort { $a <=> $b } keys %$if_entries ) {
@@ -64,12 +64,17 @@ INITIALIZATION
 PRIVATE METHODS
     Only for developers or maintainers.
 
-  _fetch_if_entries($session)
-    Get some MIB values from the ifTable and ifXTable needed by all other
-    modules.
+  _fetch_if_table_entries($session)
+    Get some MIB values from the ifTable needed by all other modules.
 
-  _if_entries_cb($session)
-    The callback for _fetch_if_entries
+  _if_table_entries_cb($session)
+    The callback for _fetch_if_table_entries
+
+  _fetch_if_x_table_entries($session)
+    Get some MIB values from the ifXTable needed by all other modules.
+
+  _if_x_table_entries_cb($session)
+    The callback for _fetch_if_x_table_entries
 
 SEE ALSO
     Net::SNMP::Mixin::Dot1dBase for a mapping between ifIndexes and

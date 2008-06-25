@@ -14,7 +14,7 @@ my $prefix = __PACKAGE__;
 # this module import config
 #
 use Carp ();
-use Net::SNMP::Mixin::Util qw/idx2val/;
+use Net::SNMP::Mixin::Util qw/idx2val push_error/;
 
 #
 # this module export config
@@ -48,23 +48,23 @@ Net::SNMP::Mixin::IfInfo - mixin class for interface related infos
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 SYNOPSIS
 
   use Net::SNMP;
-  use Net::SNMP::Mixin qw/mixer init_mixins/;
+  use Net::SNMP::Mixin;
 
   my $session = Net::SNMP->session( -hostname => 'foo.bar.com' );
 
   $session->mixer('Net::SNMP::Mixin::IfInfo');
   $session->init_mixins;
-  snmp_dispatcher()   if $session->nonblocking;
-  die $session->error if $session->error;
+  snmp_dispatcher();
+  die $session->errors if $session->errors;
 
   my $if_entries = $session->get_if_entries;
   foreach my $if_index ( sort { $a <=> $b } keys %$if_entries ) {
@@ -158,7 +158,11 @@ sub _init {
   # populate the object with needed mib values
   #
   # map between ifIndexes -> ifDescr, ...
-  _fetch_if_entries($session);
+  _fetch_if_table_entries($session);
+  return if $session->error;
+
+  # map between ifIndexes -> ifAlias, ...
+  _fetch_if_x_table_entries($session);
   return if $session->error;
 
   return 1;
@@ -168,47 +172,61 @@ sub _init {
 
 Only for developers or maintainers.
 
-=head2 B<< _fetch_if_entries($session) >>
+=head2 B<< _fetch_if_table_entries($session) >>
 
-Get some MIB values from the ifTable and ifXTable needed by all
-other modules.
+Get some MIB values from the ifTable needed by all other modules.
 
 =cut
 
-sub _fetch_if_entries {
+sub _fetch_if_table_entries {
   my $session = shift;
   my $result;
 
-  # fetch all some entries from ifTable and ifXTable
+  # fetch all some entries from ifTable
   $result = $session->get_entries(
     -columns => [
       IF_DESCR,  IF_TYPE, IF_ADMIN_STATUS, IF_OPER_STATUS,
-      IF_X_NAME, IF_X_ALIAS,
+#      IF_X_NAME, IF_X_ALIAS,
     ],
 
     # define callback if in nonblocking mode
-    $session->nonblocking ? ( -callback => \&_if_entries_cb ) : (),
+    $session->nonblocking ? ( -callback => \&_if_table_entries_cb ) : (),
   );
 
-  return unless defined $result;
+  unless (defined $result) {
+    # Net::SNMP looses sometimes error messages in nonblocking
+    # mode, so we save them in an extra buffer
+    my $err_msg = $session->error;
+    push_error($session, "$prefix: $err_msg") if $err_msg;
+    return;
+  }
+
+  # in nonblocking mode the callback will be called asynchronously
   return 1 if $session->nonblocking;
 
-  # call the callback funktion in blocking mode by hand
-  _if_entries_cb($session);
+  # ok we are in synchronous mode, call the result mangling function
+  # by hand
+  _if_table_entries_cb($session);
 
 }
 
-=head2 B<< _if_entries_cb($session) >>
+=head2 B<< _if_table_entries_cb($session) >>
 
-The callback for _fetch_if_entries
+The callback for _fetch_if_table_entries
 
 =cut
 
-sub _if_entries_cb {
+sub _if_table_entries_cb {
   my $session = shift;
   my $vbl     = $session->var_bind_list;
 
-  return unless defined $vbl;
+  unless (defined $vbl) {
+    # Net::SNMP looses sometimes error messages in nonblocking
+    # mode, so we save them in an extra buffer
+    my $err_msg = $session->error;
+    push_error($session, "$prefix: $err_msg") if $err_msg;
+    return;
+  }
 
   # mangle result table to get plain idx->value
   $session->{$prefix}{ifInfo}{ifDescr} = idx2val( $vbl, IF_DESCR );
@@ -220,6 +238,64 @@ sub _if_entries_cb {
 
   $session->{$prefix}{ifInfo}{ifOperStatus} =
     idx2val( $vbl, IF_OPER_STATUS );
+
+  $session->{$prefix}{__initialized}++;
+}
+
+=head2 B<< _fetch_if_x_table_entries($session) >>
+
+Get some MIB values from the ifXTable needed by all other modules.
+
+=cut
+
+sub _fetch_if_x_table_entries {
+  my $session = shift;
+  my $result;
+
+  # fetch all some entries from ifXTable
+  $result = $session->get_entries(
+    -columns => [ IF_X_NAME, IF_X_ALIAS, ],
+
+    # define callback if in nonblocking mode
+    $session->nonblocking ? ( -callback => \&_if_x_table_entries_cb ) : (),
+  );
+
+  unless (defined $result) {
+    # Net::SNMP looses sometimes error messages in nonblocking
+    # mode, so we save them in an extra buffer
+    my $err_msg = $session->error;
+    push_error($session, "$prefix: $err_msg") if $err_msg;
+    return;
+  }
+
+  # in nonblocking mode the callback will be called asynchronously
+  return 1 if $session->nonblocking;
+
+  # ok we are in synchronous mode, call the result mangling function
+  # by hand
+  _if_x_table_entries_cb($session);
+
+}
+
+=head2 B<< _if_x_table_entries_cb($session) >>
+
+The callback for _fetch_if_x_table_entries
+
+=cut
+
+sub _if_x_table_entries_cb {
+  my $session = shift;
+  my $vbl     = $session->var_bind_list;
+
+  unless (defined $vbl) {
+    # Net::SNMP looses sometimes error messages in nonblocking
+    # mode, so we save them in an extra buffer
+    my $err_msg = $session->error;
+    push_error($session, "$prefix: $err_msg") if $err_msg;
+    return;
+  }
+
+  # mangle result table to get plain idx->value
 
   $session->{$prefix}{ifInfo}{ifName}  = idx2val( $vbl, IF_X_NAME );
 

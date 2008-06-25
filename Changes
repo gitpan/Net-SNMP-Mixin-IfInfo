@@ -1,5 +1,11 @@
 Revision history for Net-SNMP-Mixin-IfInfo
 
+0.04	Thu Jun 26 00:37:47 MEST 2008
+	get_entries is buggy when fetching from different
+	tables, like ifTable and ifXTable
+
+	use push_error
+
 0.03	Fr 25. Apr 19:17:10 CEST 2008
 	new return values processing
 	no interface change

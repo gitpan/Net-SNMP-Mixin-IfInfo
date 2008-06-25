@@ -32,7 +32,7 @@ A script to get the ifTable and ifXTable info from switches supporting the MIBs.
 
 use blib;
 use Net::SNMP qw(:debug :snmp);
-use Net::SNMP::Mixin qw/mixer init_mixins/;
+use Net::SNMP::Mixin;
 
 use Getopt::Std;
 
@@ -62,7 +62,7 @@ foreach my $agent ( sort @agents ) {
     -nonblocking => $nonblocking,
     -timeout     => $timeout,
     -retries     => $retries,
-    -debug       => $debug ? DEBUG_ALL: 0,
+    -debug       => $debug ? DEBUG_ALL : 0,
   );
 
   if ($error) {
@@ -74,42 +74,55 @@ foreach my $agent ( sort @agents ) {
   $session->init_mixins;
   push @sessions, $session;
 }
-snmp_dispatcher() if $Net::SNMP::NONBLOCKING;
+snmp_dispatcher();
+
+# warn on errors during initialization
+foreach my $session (@sessions) {
+  if ( $session->errors ) {
+    foreach my $error ( $session->errors ) {
+      warn $session->hostname . ": $error\n";
+    }
+  }
+}
+
+# remove sessions with errors from the sessions list
+@sessions = grep { not $_->errors(1) } @sessions;
 
 # remove sessions with error from the sessions list
 @sessions = grep { warn $_->error if $_->error; not $_->error } @sessions;
 
-print_if();
+foreach my $session ( sort { $a->hostname cmp $b->hostname } @sessions ) {
+  print_if($session);
+}
+
 exit 0;
 
 ###################### end of main ######################
 
 sub print_if {
+  my $session = shift;
 
-  foreach my $session ( sort { $a->hostname cmp $b->hostname } @sessions ) {
+  print "\n";
+  printf "Hostname: %-15.15s\n", $session->hostname;
 
-    print "\n";
-    printf "Hostname: %-15.15s\n", $session->hostname;
+  print '-' x 78, "\n";
+  printf "%5s %5s %6s %10s %26s %21s\n",
+    'ifIdx', 'ad/op', 'ifName', 'ifDesc', 'ifAlias', 'ifType';
+  print '-' x 78, "\n";
 
-    print '-' x 78, "\n";
-    printf "%5s %5s %6s %10s %26s %21s\n",
-	    'ifIdx', 'ad/op', 'ifName', 'ifDesc', 'ifAlias', 'ifType';
-    print '-' x 78, "\n";
+  my $if_entries = $session->get_if_entries;
+  foreach my $if_index ( sort { $a <=> $b } keys %$if_entries ) {
+    my $ifAdminStatus = $if_entries->{$if_index}->{ifAdminStatus} || 0;
+    my $ifOperStatus  = $if_entries->{$if_index}->{ifOperStatus}  || 0;
+    my $ifName        = $if_entries->{$if_index}->{ifName}        || '';
+    my $ifDescr       = $if_entries->{$if_index}->{ifDescr}       || '';
+    my $ifType        = $if_entries->{$if_index}->{ifType}        || '';
+    my $ifAlias       = $if_entries->{$if_index}->{ifAlias}       || '';
 
-    my $if_entries = $session->get_if_entries;
-    foreach my $if_index ( sort { $a <=> $b } keys %$if_entries ) {
-      my $ifAdminStatus = $if_entries->{$if_index}->{ifAdminStatus} || 0;
-      my $ifOperStatus  = $if_entries->{$if_index}->{ifOperStatus} || 0;
-      my $ifName        = $if_entries->{$if_index}->{ifName} || '';
-      my $ifDescr       = $if_entries->{$if_index}->{ifDescr} || '';
-      my $ifType        = $if_entries->{$if_index}->{ifType}  || '';
-      my $ifAlias       = $if_entries->{$if_index}->{ifAlias} || '';
-
-      printf "%5d  %1d/%1d  %-10.10s %-25.25s %-22.22s %2d\n", $if_index,
-        $ifAdminStatus, $ifOperStatus, $ifName, $ifDescr, $ifAlias, $ifType;
-    }
-    print "\n";
+    printf "%5d  %1d/%1d  %-10.10s %-25.25s %-22.22s %2d\n", $if_index,
+      $ifAdminStatus, $ifOperStatus, $ifName, $ifDescr, $ifAlias, $ifType;
   }
+  print "\n";
 }
 
 sub usage {
