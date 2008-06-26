@@ -34,14 +34,14 @@ like( $@, qr/already mixed into/, 'mixed in twice is an error' );
 
 eval { $session->init_mixins() };
 like(
-  $session->error,
+  $session->errors,
   qr/No response from remote host/i,
   'No response from remote host'
 );
 
 eval { $session->init_mixins(1) };
 like(
-  $session->error,
+  $session->errors,
   qr/No response from remote host/i,
   'No response from remote host'
 );
@@ -65,7 +65,7 @@ is( $@, '', 'Net::SNMP::Mixin::IfInfo mixed in successful' );
 eval { $session->init_mixins() };
 Net::SNMP::snmp_dispatcher();
 like(
-  $session->error,
+  $session->errors,
   qr/No response from remote host/i,
   'No response from remote host'
 );
@@ -73,7 +73,7 @@ like(
 eval { $session->init_mixins(1) };
 Net::SNMP::snmp_dispatcher();
 like(
-  $session->error,
+  $session->errors,
   qr/No response from remote host/i,
   'No response from remote host'
 );

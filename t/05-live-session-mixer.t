@@ -115,7 +115,7 @@ SKIP: {
 
   eval { $session->init_mixins };
   like(
-    $session->error,
+    $session->errors,
     qr/No response from remote host/i,
     'No response from remote host'
   );
@@ -147,7 +147,7 @@ SKIP: {
   eval { $session->init_mixins };
   snmp_dispatcher();
   like(
-    $session->error,
+    $session->errors,
     qr/No response from remote host/i,
     'No response from remote host'
   );
